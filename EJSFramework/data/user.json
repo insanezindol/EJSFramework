@@ -1,0 +1,22 @@
+{
+	"first_user": {
+		"password": "first_pass",
+		"name": "abet",
+		"auth": "vistor"
+	},
+	"second_user": {
+		"password": "second_pass",
+		"name": "betty",
+		"auth": "human"
+	},
+	"jhlee": {
+		"password": "1111",
+		"name": "Lee Jin Hyung",
+		"auth": "admin"
+	},
+	"mskim": {
+		"password": "1111",
+		"name": "Kim Min Soo",
+		"auth": "admin"
+	}
+}
