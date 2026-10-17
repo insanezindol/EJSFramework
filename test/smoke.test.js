@@ -146,6 +146,16 @@ test('POST /addUser validates, adds and detects duplicates', async () => {
 	assert.deepEqual(await res.json(), { success: 0, error: 'duplicate' });
 });
 
+test('POST/PUT without body returns invalid request', async () => {
+	let res = await fetch(baseUrl + '/addUser/empty_user', { method: 'POST' });
+	assert.equal(res.status, 200);
+	assert.deepEqual(await res.json(), { success: 0, error: 'invalid request' });
+
+	res = await fetch(baseUrl + '/updateUser/empty_user', { method: 'PUT' });
+	assert.equal(res.status, 200);
+	assert.deepEqual(await res.json(), { success: 0, error: 'invalid request' });
+});
+
 test('PUT /updateUser validates and updates', async () => {
 	let res = await fetch(baseUrl + '/updateUser/second_user', {
 		method: 'PUT',
