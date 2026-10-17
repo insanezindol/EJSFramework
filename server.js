@@ -1,6 +1,5 @@
 var express = require('express');
 var app = express();
-var bodyParser = require('body-parser');
 var session = require('express-session');
 var fs = require("fs")
 
@@ -16,8 +15,8 @@ var server = app.listen(port, function(){
 
 app.use(express.static('public'));
 
-app.use(bodyParser.urlencoded({extended: true}));
-app.use(bodyParser.json());
+app.use(express.urlencoded({extended: true}));
+app.use(express.json());
 app.use(session({
  secret: '@#@$MYSIGN#@$#$',
  resave: false,

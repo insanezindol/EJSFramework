@@ -36,7 +36,7 @@ module.exports = function(app, fs) {
 		var username = req.params.username;
 
 		// CHECK REQ VALIDITY
-		if (!req.body["password"] || !req.body["name"]) {
+		if (!req.body || !req.body["password"] || !req.body["name"]) {
 			result["success"] = 0;
 			result["error"] = "invalid request";
 			res.json(result);
@@ -71,7 +71,7 @@ module.exports = function(app, fs) {
         var username = req.params.username;
 
         // CHECK REQ VALIDITY
-        if(!req.body["password"] || !req.body["name"]){
+        if(!req.body || !req.body["password"] || !req.body["name"]){
             result["success"] = 0;
             result["error"] = "invalid request";
             res.json(result);
