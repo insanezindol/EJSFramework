@@ -1,177 +1,146 @@
-module.exports = function(app, fs) {
-	var userjsonDir = __dirname + "/../data/user.json";
-	
+const fs = require('node:fs/promises');
+const path = require('node:path');
+
+const userjsonDir = path.join(__dirname, '..', 'data', 'user.json');
+
+async function readUsers() {
+	const data = await fs.readFile(userjsonDir, 'utf8');
+	return JSON.parse(data);
+}
+
+async function writeUsers(users) {
+	await fs.writeFile(userjsonDir, JSON.stringify(users, null, '\t'), 'utf8');
+}
+
+function isValidUserBody(body) {
+	return Boolean(body && body.password && body.name);
+}
+
+module.exports = function(app) {
 	// 인덱스 페이지
-    app.get('/',function(req,res){
-        var sess = req.session;
-        
-        console.log(sess);
+	app.get('/', (req, res) => {
+		const sess = req.session;
 
-        res.render('index', {
-            title: "MY HOMEPAGE",
-            length: 5,
-            name: sess.name,
-            username: sess.username
-        })
-    });
+		console.log(sess);
 
-	// 전체 리스트 페이지
-	app.get('/list', function(req, res) {
-		fs.readFile(userjsonDir, 'utf8', function(err, data) {
-			res.end(data);
-		});
-	})
-
-	// 유저 1명 상세 페이지
-	app.get('/getUser/:username', function(req, res) {
-		fs.readFile(userjsonDir, 'utf8', function(err, data) {
-			var users = JSON.parse(data);
-			res.json(users[req.params.username]);
+		res.render('index', {
+			title: 'MY HOMEPAGE',
+			length: 5,
+			name: sess.name,
+			username: sess.username
 		});
 	});
 
+	// 전체 리스트 페이지
+	app.get('/list', async (req, res) => {
+		const data = await fs.readFile(userjsonDir, 'utf8');
+		res.end(data);
+	});
+
+	// 유저 1명 상세 페이지
+	app.get('/getUser/:username', async (req, res) => {
+		const users = await readUsers();
+		res.json(users[req.params.username]);
+	});
+
 	// 유저 추가 RESTful API
-	app.post('/addUser/:username', function(req, res) {
-		var result = {};
-		var username = req.params.username;
+	app.post('/addUser/:username', async (req, res) => {
+		const username = req.params.username;
 
 		// CHECK REQ VALIDITY
-		if (!req.body || !req.body["password"] || !req.body["name"]) {
-			result["success"] = 0;
-			result["error"] = "invalid request";
-			res.json(result);
+		if (!isValidUserBody(req.body)) {
+			res.json({ success: 0, error: 'invalid request' });
 			return;
 		}
 
 		// LOAD DATA & CHECK DUPLICATION
-		fs.readFile(userjsonDir, 'utf8', function(err, data) {
-			var users = JSON.parse(data);
-			if (users[username]) {
-				// DUPLICATION FOUND
-				result["success"] = 0;
-				result["error"] = "duplicate";
-				res.json(result);
-				return;
-			}
+		const users = await readUsers();
+		if (users[username]) {
+			// DUPLICATION FOUND
+			res.json({ success: 0, error: 'duplicate' });
+			return;
+		}
 
-			// ADD TO DATA
-			users[username] = req.body;
-
-			// SAVE DATA
-			fs.writeFile(userjsonDir, JSON.stringify(users, null, '\t'), "utf8", function(err, data) {
-				result = {"success" : 1};
-				res.json(result);
-			})
-		})
+		// ADD TO DATA & SAVE
+		users[username] = req.body;
+		await writeUsers(users);
+		res.json({ success: 1 });
 	});
-	
+
 	// 유저 수정 RESTful API
-	app.put('/updateUser/:username', function(req, res){
-        var result = {  };
-        var username = req.params.username;
+	app.put('/updateUser/:username', async (req, res) => {
+		const username = req.params.username;
 
-        // CHECK REQ VALIDITY
-        if(!req.body || !req.body["password"] || !req.body["name"]){
-            result["success"] = 0;
-            result["error"] = "invalid request";
-            res.json(result);
-            return;
-        }
+		// CHECK REQ VALIDITY
+		if (!isValidUserBody(req.body)) {
+			res.json({ success: 0, error: 'invalid request' });
+			return;
+		}
 
-        // LOAD DATA
-        fs.readFile( userjsonDir, 'utf8',  function(err, data){
-            var users = JSON.parse(data);
-            // ADD/MODIFY DATA
-            users[username] = req.body;
-
-            // SAVE DATA
-            fs.writeFile(userjsonDir,
-                         JSON.stringify(users, null, '\t'), "utf8", function(err, data){
-                result = {"success": 1};
-                res.json(result);
-            })
-        })
-    });
+		// LOAD DATA, ADD/MODIFY & SAVE
+		const users = await readUsers();
+		users[username] = req.body;
+		await writeUsers(users);
+		res.json({ success: 1 });
+	});
 
 	// 유저 삭제 RESTful API
-    app.delete('/deleteUser/:username', function(req, res){
-        var result = { };
-        //LOAD DATA
-        fs.readFile(userjsonDir, "utf8", function(err, data){
-            var users = JSON.parse(data);
+	app.delete('/deleteUser/:username', async (req, res) => {
+		const users = await readUsers();
 
-            // IF NOT FOUND
-            if(!users[req.params.username]){
-                result["success"] = 0;
-                result["error"] = "not found";
-                res.json(result);
-                return;
-            }
+		// IF NOT FOUND
+		if (!users[req.params.username]) {
+			res.json({ success: 0, error: 'not found' });
+			return;
+		}
 
-            // DELETE FROM DATA
-            delete users[req.params.username];
+		// DELETE FROM DATA & SAVE
+		delete users[req.params.username];
+		await writeUsers(users);
+		res.json({ success: 1 });
+	});
 
-            // SAVE FILE
-            fs.writeFile(userjsonDir,
-                         JSON.stringify(users, null, '\t'), "utf8", function(err, data){
-                result["success"] = 1;
-                res.json(result);
-                return;
-            })
-        })
-    });
-    
-    // 로그인 모듈
-    app.get('/login/:username/:password', function(req, res){
-        var sess;
-        sess = req.session;
+	// 로그인 모듈
+	app.get('/login/:username/:password', async (req, res) => {
+		const sess = req.session;
+		const { username, password } = req.params;
+		const users = await readUsers();
 
-        fs.readFile(userjsonDir, "utf8", function(err, data){
-            var users = JSON.parse(data);
-            var username = req.params.username;
-            var password = req.params.password;
-            var result = {};
-            if(!users[username]){
-                // USERNAME NOT FOUND
-                result["success"] = 0;
-                result["error"] = "not found";
-                res.json(result);
-                return;
-            }     
+		if (!users[username]) {
+			// USERNAME NOT FOUND
+			res.json({ success: 0, error: 'not found' });
+			return;
+		}
 
-            if(users[username]["password"] == password){
-                result["success"] = 1;
-                sess.username = username;
-                sess.name = users[username]["name"];
-                
-                console.log(sess);
-                console.log("username : " + sess.username);
-                console.log("name : " + sess.name);
-                
-                res.json(result);
-            
-            }else{
-                result["success"] = 0;
-                result["error"] = "incorrect";
-                res.json(result);
-            }
-        })
-    });
-    
-    // 로그아웃 모듈
-    app.get('/logout', function(req, res){
-        sess = req.session;
-        if(sess.username){
-            req.session.destroy(function(err){
-                if(err){
-                    console.log(err);
-                }else{
-                    res.redirect('/');
-                }
-            })
-        }else{
-            res.redirect('/');
-        }
-    });
-    
-}
+		// JSON 바디로 숫자 비밀번호가 저장될 수 있으므로 기존 == 비교와 동일하게 문자열로 비교
+		if (String(users[username].password) === password) {
+			sess.username = username;
+			sess.name = users[username].name;
+
+			console.log(sess);
+			console.log('username : ' + sess.username);
+			console.log('name : ' + sess.name);
+
+			res.json({ success: 1 });
+		} else {
+			res.json({ success: 0, error: 'incorrect' });
+		}
+	});
+
+	// 로그아웃 모듈
+	app.get('/logout', (req, res, next) => {
+		const sess = req.session;
+		if (!sess.username) {
+			res.redirect('/');
+			return;
+		}
+
+		sess.destroy((err) => {
+			if (err) {
+				next(err);
+				return;
+			}
+			res.redirect('/');
+		});
+	});
+};

@@ -210,6 +210,34 @@ test('login / session / logout flow', async () => {
 	assert.equal(res.headers.get('location'), '/');
 });
 
+test('login works with numeric password stored via JSON body', async () => {
+	let res = await fetch(baseUrl + '/addUser/num_user', {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify({ password: 1234, name: 'Num' }),
+	});
+	assert.deepEqual(await res.json(), { success: 1 });
+
+	res = await fetch(baseUrl + '/login/num_user/1234');
+	assert.deepEqual(await res.json(), { success: 1 });
+});
+
+test('corrupted user.json returns 500 without crashing the server', async () => {
+	const file = path.join(tmpDir, 'data', 'user.json');
+	const backup = fs.readFileSync(file, 'utf8');
+	fs.writeFileSync(file, '{ not json');
+	try {
+		const res = await fetch(baseUrl + '/getUser/first_user');
+		assert.equal(res.status, 500);
+		assert.deepEqual(await res.json(), { success: 0, error: 'server error' });
+
+		const home = await fetch(baseUrl + '/');
+		assert.equal(home.status, 200);
+	} finally {
+		fs.writeFileSync(file, backup);
+	}
+});
+
 test('original data/user.json is untouched', () => {
 	const original = JSON.parse(fs.readFileSync(path.join(ROOT, 'data', 'user.json'), 'utf8'));
 	assert.deepEqual(Object.keys(original), ['first_user', 'second_user', 'jhlee', 'mskim']);
